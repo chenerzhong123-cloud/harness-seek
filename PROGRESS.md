@@ -53,15 +53,28 @@ eval_runner.py 升级完成，新增功能：
 
 **T001 验证通过**：GLM-5.1 × 1 run → final_pass=true, scorecard 全绿, 108.4s, 1 file/8 lines
 
-### 下一步：Step 6 — 重新跑小规模可信 baseline
+### Step 6 — 可信 Baseline ✅
 
-```bash
-source .venv/bin/activate
-python eval_runner.py --model glm-5.1 --task T001 --runs 3 --config baseline
-python eval_runner.py --model glm-5.1 --task T002 --runs 3 --config baseline
-python eval_runner.py --model glm-5.1 --task T003 --runs 3 --config baseline
-python eval_runner.py --report
-```
+GLM-5.1 × T001-T003 × 3 runs：
+
+| 任务 | 通过率 | 平均耗时 | 改动量 |
+|------|--------|----------|--------|
+| T001 修复歌单数量限制 | **3/3 (100%)** | 87.1s | 1 file / 8 lines |
+| T002 将 callback 改为 async/await | **3/3 (100%)** | 217.0s | 1 file / 94 lines |
+| T003 提取 API 错误处理中间件 | **0/3 (0%)** | 42.4s | 1 file / 33 lines |
+
+**T003 失败分析**：
+- Run 0: filter 创建在 `src/filters/` 而非 `src/common/filters/`，scope_control FAIL + oracle FAIL
+- Run 1: 模型输出了计划但未应用任何修改（0 files changed）
+- Run 2: 同 Run 0，路径错误 + 错误响应格式不符合 `{ code, message, data: null }`
+
+**核心问题**：T003 任务描述中指定了 `src/common/filters/` 路径，但模型选择自作主张放在 `src/filters/`。即使创建了 filter，NestJS 的错误响应格式转换也不正确。
+
+### 下一步：Step 7 — T003 失败复盘 + Harness 实验
+
+1. 分析 T003 失败样本的 agent_stdout.log 和 patch.diff
+2. 考虑改进 T003 任务描述（更明确的路径和格式要求）
+3. H001-H003 Harness 实验变量（system prompt / 上下文注入 / 分步引导）
 
 ## 待解决
 
