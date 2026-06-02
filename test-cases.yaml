@@ -1,0 +1,22 @@
+# test-cases.yaml — 测试用例分类
+# 用于评估模型产出的代码是否通过正确性检验
+
+critical:  # 必须通过，否则任务失败
+  - name: 搜索歌曲返回结果
+    endpoint: GET /api/songs/search
+  - name: 创建歌单成功
+    endpoint: POST /api/playlists
+  - name: 获取公开歌单
+    endpoint: GET /api/playlists/:id
+  - name: 微信登录流程
+    endpoint: POST /api/auth/wechat
+
+important:  # 重要但不是致命
+  - name: 好友歌单列表
+    endpoint: GET /api/playlists/friends
+  - name: 用户信息更新
+    endpoint: PATCH /api/users/me
+
+nice_to_have:  # 锦上添花
+  - name: 统计接口
+    endpoint: GET /api/stats

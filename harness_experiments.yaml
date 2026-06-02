@@ -1,0 +1,21 @@
+# harness_experiments.yaml — Harness 变量实验定义
+# 每次只改一个变量，与 baseline 对比
+
+experiments:
+  - id: H001
+    name: "system prompt 优化"
+    description: "在 system prompt 中加入项目的技术栈说明和代码规范"
+    change: "修改 Aider 的 --system-message 参数"
+    baseline: "默认 system prompt"
+
+  - id: H002
+    name: "上下文注入"
+    description: "在任务描述中额外提供相关文件的当前内容"
+    change: "任务描述前注入 file context"
+    baseline: "H001"
+
+  - id: H003
+    name: "分步引导"
+    description: "将任务拆成子步骤，每步执行后验证再继续"
+    change: "多轮交互代替单次大 prompt"
+    baseline: "H001"

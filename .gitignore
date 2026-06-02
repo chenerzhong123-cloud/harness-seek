@@ -1,0 +1,19 @@
+# 依赖和敏感信息
+.env
+project/
+.venv/
+
+# 评测临时文件
+.eval_worktrees/
+eval_results/
+
+# Python
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+
+# OS
+.DS_Store
+.aider*

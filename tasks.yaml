@@ -1,0 +1,85 @@
+# tasks.yaml — DeathPlaylist 评测任务定义（v2 — 结构化字段）
+# 每个任务必须：独立可执行、有明确完成标准、可在 30 分钟内完成
+
+tasks:
+  # === 第一阶段：T001-T003（高质量可信 eval） ===
+
+  - id: T001
+    title: "修复歌单数量限制校验"
+    category: "bugfix"
+    difficulty: "easy"
+    description: |
+      当前后端允许创建或更新包含超过 9 首歌的歌单。
+      请在 playlist service 中添加校验：创建和更新时 songs 数量不能超过 9。
+      超出时返回 400，并包含错误消息：最多只能添加9首音乐。
+      不要修改前端或小程序代码。
+    files:
+      - deathplaylist_backends/src/playlists/playlists.service.ts
+    expected_changed_files:
+      - deathplaylist_backends/src/playlists/playlists.service.ts
+    allowed_changed_files:
+      - deathplaylist_backends/src/playlists/playlists.service.ts
+    forbidden_changed_files:
+      - deathplaylist_frontend/**
+      - deathplaylist_miniprogram/**
+    baseline_should_fail: true
+    baseline_check_command: "cd deathplaylist_backends && DB_DATABASE=:memory: npm run test:e2e -- --testPathPattern=eval-task-T001 --forceExit"
+    oracle_test_command: "cd deathplaylist_backends && DB_DATABASE=:memory: npm run test:e2e -- --testPathPattern=eval-task-T001 --forceExit"
+    regression_test_command: "cd deathplaylist_backends && DB_DATABASE=:memory: npm run test:e2e -- --testPathPattern=eval-api --forceExit"
+    max_files_changed: 1
+    max_lines_total: 60
+
+  - id: T002
+    title: "将小程序推荐引擎改为 async/await"
+    category: "refactor"
+    difficulty: "medium"
+    description: |
+      deathplaylist_miniprogram/utils/recommend.js 中的推荐引擎需要从回调/嵌套异步流程改为 async/await。
+      保持 module.exports = { loadRecommendations } 不变。
+      保持推荐缓存、访问次数轮转、去重、相邻歌手规避逻辑不退化。
+      不要修改 H5 前端 useRecommend.ts。
+    files:
+      - deathplaylist_miniprogram/utils/recommend.js
+    expected_changed_files:
+      - deathplaylist_miniprogram/utils/recommend.js
+    allowed_changed_files:
+      - deathplaylist_miniprogram/utils/recommend.js
+    forbidden_changed_files:
+      - deathplaylist_frontend/**
+      - deathplaylist_backends/**
+    baseline_should_fail: true
+    baseline_check_command: "cd deathplaylist_miniprogram && node test/eval-task-T002.test.js"
+    oracle_test_command: "cd deathplaylist_miniprogram && node test/eval-task-T002.test.js"
+    regression_test_command: "cd deathplaylist_miniprogram && node -e \"const rec = require('./utils/recommend.js'); if (typeof rec.loadRecommendations !== 'function') process.exit(1)\""
+    max_files_changed: 1
+    max_lines_total: 120
+
+  - id: T003
+    title: "提取 API 错误处理中间件"
+    category: "refactor"
+    difficulty: "medium"
+    description: |
+      请创建 NestJS exception filter，统一处理错误响应。
+      错误响应必须为 { code, message, data: null }。
+      至少覆盖 400、401、404。
+      正常接口响应不要被包裹。
+    files:
+      - deathplaylist_backends/src/common/filters/
+      - deathplaylist_backends/src/main.ts
+    expected_changed_files:
+      - deathplaylist_backends/src/common/filters/**
+      - deathplaylist_backends/src/main.ts
+    allowed_changed_files:
+      - deathplaylist_backends/src/common/filters/**
+      - deathplaylist_backends/src/main.ts
+    forbidden_changed_files:
+      - deathplaylist_frontend/**
+      - deathplaylist_miniprogram/**
+    baseline_should_fail: true
+    baseline_check_command: "cd deathplaylist_backends && DB_DATABASE=:memory: npm run test:e2e -- --testPathPattern=eval-task-T003 --forceExit"
+    oracle_test_command: "cd deathplaylist_backends && DB_DATABASE=:memory: npm run test:e2e -- --testPathPattern=eval-task-T003 --forceExit"
+    regression_test_command: "cd deathplaylist_backends && DB_DATABASE=:memory: npm run test:e2e -- --testPathPattern=eval-api --forceExit"
+    max_files_changed: 3
+    max_lines_total: 160
+
+  # === 暂停：T004-T006 等第一阶段完成后再启用 ===
