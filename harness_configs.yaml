@@ -1,0 +1,154 @@
+# harness_configs.yaml — Harness 实验配置
+# 每个实验尽量只比前一个多一个主要变量，保证结果可解释
+# 固定条件：model=glm-5.1, tasks=T001-T003, runs=3, auto_commits=false, edit_format=diff
+
+defaults:
+  model: glm-5.1
+  tasks: [T001, T002, T003]
+  runs: 3
+  auto_commits: false
+  edit_format: diff
+  planning_mode: direct
+  scope_guard: post_check
+
+# ─── Prompt 模板定义 ───
+
+prompt_templates:
+
+  raw: |
+    {description}
+
+  constrained: |
+    {description}
+
+    【严格约束】
+    - 只允许修改：{allowed_changed_files}
+    - 禁止修改：{forbidden_changed_files}
+    - 最多改动 {max_lines_total} 行
+    - 不要修改测试文件以外的任何无关文件
+
+  structured: |
+    ## Task
+    {description}
+
+    ## Invariants
+    {business_invariants}
+
+    ## Allowed Files
+    {allowed_changed_files}
+
+    ## Forbidden Files
+    {forbidden_changed_files}
+
+    ## Verification
+    Oracle: {oracle_test_command}
+    Regression: {regression_test_command}
+
+    ## Constraints
+    - Do not modify tests.
+    - Do not modify files outside allowed files.
+    - Keep the change minimal.
+    - Preserve existing public APIs unless the task explicitly requires changing them.
+    - If unsure, read the file first before modifying.
+
+# ─── 上下文模式定义 ───
+
+context_modes:
+
+  file_args_only:
+    description: "只传 task.files"
+    include_oracle_test: false
+    include_regression_command: false
+    map_tokens: 2048
+
+  repo_map:
+    description: "启用 repo map"
+    include_oracle_test: false
+    include_regression_command: false
+    map_tokens: 2048
+
+  oracle_visible:
+    description: "传入 oracle 测试文件和目标文件"
+    include_oracle_test: true
+    include_regression_command: true
+    map_tokens: 2048
+
+  focused_context:
+    description: "注入相关文件内容摘要"
+    include_oracle_test: true
+    include_regression_command: true
+    include_related_files: true
+    map_tokens: 2048
+
+# ─── 实验配置 ───
+
+configs:
+  - id: H0_baseline
+    prompt_template: raw
+    context_mode: file_args_only
+    map_tokens: 2048
+    edit_format: diff
+    planning_mode: direct
+    feedback_rounds: 1
+    scope_guard: post_check
+    audit_level: basic
+
+  - id: H1_constrained_prompt
+    prompt_template: constrained
+    context_mode: file_args_only
+    map_tokens: 2048
+    edit_format: diff
+    planning_mode: direct
+    feedback_rounds: 1
+    scope_guard: post_check
+    audit_level: basic
+
+  - id: H2_structured_prompt
+    prompt_template: structured
+    context_mode: file_args_only
+    map_tokens: 2048
+    edit_format: diff
+    planning_mode: direct
+    feedback_rounds: 1
+    scope_guard: post_check
+    audit_level: basic
+
+  - id: H3_oracle_context
+    prompt_template: structured
+    context_mode: oracle_visible
+    map_tokens: 2048
+    edit_format: diff
+    planning_mode: direct
+    feedback_rounds: 1
+    scope_guard: post_check
+    audit_level: basic
+
+  - id: H4_feedback_2round
+    prompt_template: structured
+    context_mode: oracle_visible
+    map_tokens: 2048
+    edit_format: diff
+    planning_mode: direct
+    feedback_rounds: 2
+    scope_guard: post_check
+    audit_level: full
+
+  - id: H5_feedback_3round
+    prompt_template: structured
+    context_mode: oracle_visible
+    map_tokens: 2048
+    edit_format: diff
+    planning_mode: direct
+    feedback_rounds: 3
+    scope_guard: post_check
+    audit_level: full
+
+  - id: H6_repo_map_4096
+    prompt_template: structured
+    context_mode: oracle_visible
+    map_tokens: 4096
+    edit_format: diff
+    planning_mode: direct
+    feedback_rounds: 2
+    scope_guard: post_check
+    audit_level: full
