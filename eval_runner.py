@@ -153,6 +153,7 @@ def run_agent(task: dict, model_name: str, worktree_path: Path) -> dict:
         "--model", aider_model,
         "--yes-always",
         "--no-auto-commits",
+        "--no-show-model-warnings",
         "--message", task["description"],
     ]
     cmd.extend(_get_aider_extra_args(model_name))

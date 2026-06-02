@@ -59,18 +59,27 @@ tasks:
     category: "refactor"
     difficulty: "medium"
     description: |
-      请创建 NestJS exception filter，统一处理错误响应。
-      错误响应必须为 { code, message, data: null }。
-      至少覆盖 400、401、404。
-      正常接口响应不要被包裹。
+      在 NestJS 后端中创建一个全局 exception filter，统一所有 HTTP 错误的响应格式。
+
+      要求：
+      1. 在 src/filters/ 目录下创建 http-exception.filter.ts
+      2. Filter 类名为 UnifiedExceptionFilter，使用 @Catch() 装饰器捕获所有异常
+      3. 错误响应必须返回 JSON 格式：{ code: number, message: string, data: null }
+         - code = HTTP 状态码（400、401、404 等）
+         - message = 错误消息字符串
+      4. 在 main.ts 中用 app.useGlobalFilters(new UnifiedExceptionFilter()) 注册
+      5. 正常的成功响应（200/201）不要被包裹，保持原样
+
+      示例：访问未认证接口返回 401 时，响应体应为：
+      { "code": 401, "message": "Unauthorized", "data": null }
     files:
-      - deathplaylist_backends/src/common/filters/
+      - deathplaylist_backends/src/filters/
       - deathplaylist_backends/src/main.ts
     expected_changed_files:
-      - deathplaylist_backends/src/common/filters/**
+      - deathplaylist_backends/src/filters/**
       - deathplaylist_backends/src/main.ts
     allowed_changed_files:
-      - deathplaylist_backends/src/common/filters/**
+      - deathplaylist_backends/src/filters/**
       - deathplaylist_backends/src/main.ts
     forbidden_changed_files:
       - deathplaylist_frontend/**

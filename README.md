@@ -199,16 +199,15 @@ DB_DATABASE=:memory: npx jest --config test/jest-e2e.json \
 |------|--------|----------|--------|
 | T001 修复歌单数量限制 | **100%** (3/3) | 87.1s | 1 file / 8 lines |
 | T002 将 callback 改为 async/await | **100%** (3/3) | 217.0s | 1 file / 94 lines |
-| T003 提取 API 错误处理中间件 | **0%** (0/3) | 42.4s | scope + oracle 失败 |
+| T003 提取 API 错误处理中间件 | **100%** (3/3) | 46.7s | 2 files / 52 lines |
 
-T003 全部失败：模型将 filter 放在错误路径（`src/filters/` vs `src/common/filters/`），且错误响应格式不符合规范。
+T003 经 Step 7 修复（oracle 测试增加动态 require + 任务描述精确化）后通过率从 0% 提升到 100%。
 
 ## 后续计划
 
-1. **Step 7**：复盘 T003 失败样本，改进任务描述
-2. **H001-H003**：Harness 实验变量（system prompt / 上下文注入 / 分步引导）
-3. **多模型对比**：接入 DeepSeek / Claude / Gemini
-4. **T004-T006**：高阶任务恢复
+1. **H001-H003**：Harness 实验变量（system prompt / 上下文注入 / 分步引导）
+2. **多模型对比**：接入 DeepSeek / Claude / Gemini
+3. **T004-T006**：高阶任务恢复
 
 ## 技术栈
 
