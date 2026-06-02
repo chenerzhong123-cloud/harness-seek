@@ -70,11 +70,38 @@ GLM-5.1 × T001-T003 × 3 runs：
 
 **核心问题**：T003 任务描述中指定了 `src/common/filters/` 路径，但模型选择自作主张放在 `src/filters/`。即使创建了 filter，NestJS 的错误响应格式转换也不正确。
 
-### 下一步：Step 7 — T003 失败复盘 + Harness 实验
+### Step 7 — T003 失败复盘 + 修复 ✅
 
-1. 分析 T003 失败样本的 agent_stdout.log 和 patch.diff
-2. 考虑改进 T003 任务描述（更明确的路径和格式要求）
-3. H001-H003 Harness 实验变量（system prompt / 上下文注入 / 分步引导）
+**失败根因分析**（三层问题）：
+
+1. **Oracle 测试不加载 agent 的 filter**：oracle 自己创建 app 实例，只注册了 `ValidationPipe`，没有导入 agent 写的 filter。即使 agent 代码完全正确，oracle 也不会通过。
+2. **任务描述路径不自然**：指定 `src/common/filters/` 但项目目录下没有 `common/`，模型自然选择 `src/filters/`。
+3. **任务描述过于简略**：没有指定类名、装饰器、响应示例，模型行为不一致。
+
+**修复措施**：
+
+- Oracle 测试增加动态 require：尝试从 `src/filters/` 和 `src/common/filters/` 导入 filter 并注册到测试 app
+- 任务描述精确化：指定路径 `src/filters/`、类名 `UnifiedExceptionFilter`、`@Catch()` 装饰器、包含响应示例
+- `expected/allowed_changed_files` 从 `src/common/filters/**` 改为 `src/filters/**`
+- eval_runner.py 添加 `--no-show-model-warnings` 抑制 Aider 警告弹窗
+
+**验证结果**（GLM-5.1 × T003 × 3 runs, config=step7）：
+
+| 指标 | Baseline (Step 6) | Step 7 改进后 |
+|------|-------------------|---------------|
+| 通过率 | 0/3 (0%) | **3/3 (100%)** |
+| 平均耗时 | 42.4s | 46.7s |
+| 改动量 | 1 file / 33 lines | 2 files / 52 lines |
+| scope_control | 0/3 | **3/3** |
+| correctness | 0/3 | **3/3** |
+
+### 下一步：Harness 实验（H001-H003）
+
+1. H001 — System Prompt 注入（中文技术写作风格 / 检查清单）
+2. H002 — 上下文注入（提供 project CLAUDE.md 作为额外上下文）
+3. H003 — 分步引导（将任务拆分为子步骤）
+4. 多模型对比：接入 DeepSeek / Claude / Gemini
+5. T004-T006 高阶任务恢复
 
 ## 待解决
 
