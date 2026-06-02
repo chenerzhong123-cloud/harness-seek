@@ -95,8 +95,9 @@ tasks:
 | T001 | 修复歌单数量限制校验 | bugfix | easy |
 | T002 | 将小程序推荐引擎改为 async/await | refactor | medium |
 | T003 | 提取 API 错误处理中间件 | refactor | medium |
-
-T004-T006 暂停，等第一阶段完成后再启用。
+| T004 | 后端拒绝空歌单 | bugfix | easy |
+| T005 | 修复小程序容器模式缺失 401 处理 | bugfix | medium |
+| T006 | 批量歌曲 upsert | refactor | hard |
 
 ## 快速开始
 
@@ -193,19 +194,22 @@ DB_DATABASE=:memory: npx jest --config test/jest-e2e.json \
 }
 ```
 
-## Baseline 结果（GLM-5.1 × 3 runs）
+## Baseline 结果（GLM-5.1 × 3 runs, H0_baseline）
 
 | 任务 | 通过率 | 平均耗时 | 改动量 |
 |------|--------|----------|--------|
 | T001 修复歌单数量限制 | **100%** (3/3) | 87.1s | 1 file / 8 lines |
 | T002 将 callback 改为 async/await | **100%** (3/3) | 217.0s | 1 file / 94 lines |
 | T003 提取 API 错误处理中间件 | **100%** (3/3) | 46.7s | 2 files / 52 lines |
+| T004 后端拒绝空歌单 | **100%** (3/3) | 41.0s | 1 file / 4 lines |
+| T005 container mode 401 | **100%** (3/3) | 18.8s | 1 file / 7 lines |
+| T006 批量歌曲 upsert | **100%** (3/3) | 85.9s | 2 files / 78 lines |
 
-T003 经 Step 7 修复（oracle 测试增加动态 require + 任务描述精确化）后通过率从 0% 提升到 100%。
+T001-T006 全部 100% 通过。
 
 ## 后续计划
 
-1. **H001-H003**：Harness 实验变量（system prompt / 上下文注入 / 分步引导）
+1. **Harness 分层实验**：H0-H6 阶梯式配置（prompt / context / feedback / audit）
 2. **多模型对比**：接入 DeepSeek / Claude / Gemini
 3. **T004-T006**：高阶任务恢复
 
