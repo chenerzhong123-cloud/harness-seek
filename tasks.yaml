@@ -22,6 +22,10 @@ tasks:
     forbidden_changed_files:
       - deathplaylist_frontend/**
       - deathplaylist_miniprogram/**
+    business_invariants: |
+      - 歌单 CRUD 基本功能不受影响
+      - 创建 9 首歌以内的歌单仍应成功
+      - 已有的 e2e 测试（eval-api）不应被破坏
     baseline_should_fail: true
     baseline_check_command: "cd deathplaylist_backends && DB_DATABASE=:memory: npm run test:e2e -- --testPathPattern=eval-task-T001 --forceExit"
     oracle_test_command: "cd deathplaylist_backends && DB_DATABASE=:memory: npm run test:e2e -- --testPathPattern=eval-task-T001 --forceExit"
@@ -47,6 +51,10 @@ tasks:
     forbidden_changed_files:
       - deathplaylist_frontend/**
       - deathplaylist_backends/**
+    business_invariants: |
+      - module.exports = { loadRecommendations } 导出接口不变
+      - 推荐缓存、访问次数轮转、去重、相邻歌手规避逻辑不退化
+      - loadRecommendations 返回值类型和结构不变
     baseline_should_fail: true
     baseline_check_command: "cd deathplaylist_miniprogram && node test/eval-task-T002.test.js"
     oracle_test_command: "cd deathplaylist_miniprogram && node test/eval-task-T002.test.js"
@@ -84,6 +92,10 @@ tasks:
     forbidden_changed_files:
       - deathplaylist_frontend/**
       - deathplaylist_miniprogram/**
+    business_invariants: |
+      - 正常的成功响应（200/201）不要被错误 filter 包裹
+      - 已有的 e2e 测试（eval-api）不应被破坏
+      - 现有的 controller 和 service 逻辑不应被修改
     baseline_should_fail: true
     baseline_check_command: "cd deathplaylist_backends && DB_DATABASE=:memory: npm run test:e2e -- --testPathPattern=eval-task-T003 --forceExit"
     oracle_test_command: "cd deathplaylist_backends && DB_DATABASE=:memory: npm run test:e2e -- --testPathPattern=eval-task-T003 --forceExit"
@@ -91,4 +103,155 @@ tasks:
     max_files_changed: 3
     max_lines_total: 160
 
-  # === 暂停：T004-T006 等第一阶段完成后再启用 ===
+  # === 第二阶段：T004-T006（优化后的高阶 eval） ===
+
+  - id: T004
+    title: "后端拒绝空歌单"
+    category: "bugfix"
+    difficulty: "easy"
+    description: |
+      当前后端的歌单创建和更新接口允许传入空的 songs 数组，导致可以创建没有任何歌曲的空歌单。
+
+      业务不变量：歌单必须包含 1-9 首歌曲。空歌单无效，因为无法分享和展示。前端/小程序的防护不替代后端校验。
+
+      请在 deathplaylist_backends/src/playlists/playlists.controller.ts 中的 DTO 类里添加数组大小校验：
+
+      1. 在 CreatePlaylistDto 类的 songs 属性上添加 @ArrayMinSize(1) 装饰器
+      2. 在 UpdatePlaylistDto 类的 songs 属性上添加 @ArrayMinSize(1) 装饰器
+      3. 需要从 class-validator 导入 ArrayMinSize
+
+      注意：UpdatePlaylistDto 的 songs 是可选字段（有 @IsOptional()）。class-validator 配合 @IsOptional() 时，只在 songs 字段存在时才校验大小。PUT 请求只改 intro 不传 songs 应该仍然可以。
+
+      示例：
+      - POST /api/playlists 传入 { "songs": [] } 应返回 400 错误
+      - POST /api/playlists 传入 { "songs": [{ "externalId": "1", "title": "Song", "artist": "Artist" }] } 应返回 201
+      - PUT /api/playlists/:id 传入 { "intro": "新简介" }（不传 songs）应返回 200
+
+      只修改 deathplaylist_backends/src/playlists/playlists.controller.ts 文件。
+      不要修改前端或小程序代码。
+    files:
+      - deathplaylist_backends/src/playlists/playlists.controller.ts
+    expected_changed_files:
+      - deathplaylist_backends/src/playlists/playlists.controller.ts
+    allowed_changed_files:
+      - deathplaylist_backends/src/playlists/playlists.controller.ts
+    forbidden_changed_files:
+      - deathplaylist_frontend/**
+      - deathplaylist_miniprogram/**
+    business_invariants: |
+      - 歌单必须包含 1-9 首歌曲，空数组无效
+      - PUT 不传 songs 时仍可只改 intro/bgImage
+      - 已有的 e2e 测试（eval-api）不应被破坏
+    baseline_should_fail: true
+    baseline_check_command: "cd deathplaylist_backends && DB_DATABASE=:memory: npm run test:e2e -- --testPathPattern=eval-task-T004 --forceExit"
+    oracle_test_command: "cd deathplaylist_backends && DB_DATABASE=:memory: npm run test:e2e -- --testPathPattern=eval-task-T004 --forceExit"
+    regression_test_command: "cd deathplaylist_backends && DB_DATABASE=:memory: npm run test:e2e -- --testPathPattern=eval-api --forceExit"
+    max_files_changed: 1
+    max_lines_total: 30
+
+  - id: T005
+    title: "修复小程序容器模式缺失 401 处理"
+    category: "bugfix"
+    difficulty: "medium"
+    description: |
+      deathplaylist_miniprogram/utils/api.js 中有两个请求函数：wxRequest 和 containerRequest。
+
+      wxRequest 有完整的 401 处理逻辑：
+      - 清除 JWT: wx.removeStorageSync('jwt')
+      - 清除用户: wx.removeStorageSync('user')
+      - 重置全局: getApp().globalData.user = null
+      - 返回错误: reject(new Error('登录已过期，请重新登录'))
+
+      但 containerRequest 完全没有 401 处理！它把 401 当作普通错误返回 "API Error: 401"。
+      这意味着在云托管模式下，401 不会清除过期登录态，用户无法自动重新登录。
+
+      业务不变量：所有请求模式遇到 401 时必须清除登录态（JWT、user storage、globalData.user）。
+
+      请修复 containerRequest，使其与 wxRequest 的 401 处理完全一致：
+      1. 在 success 回调中，在现有的状态码检查之前，先检查 statusCode === 401
+      2. 如果是 401，执行：wx.removeStorageSync('jwt')、wx.removeStorageSync('user')、getApp().globalData.user = null
+      3. 然后 reject(new Error('登录已过期，请重新登录')) 并 return
+      4. 保持其他逻辑不变（200-299 resolve，其他 reject）
+
+      只修改 deathplaylist_miniprogram/utils/api.js 文件。
+      不要修改后端或前端代码。
+    files:
+      - deathplaylist_miniprogram/utils/api.js
+    expected_changed_files:
+      - deathplaylist_miniprogram/utils/api.js
+    allowed_changed_files:
+      - deathplaylist_miniprogram/utils/api.js
+    forbidden_changed_files:
+      - deathplaylist_frontend/**
+      - deathplaylist_backends/**
+    business_invariants: |
+      - 所有请求模式遇到 401 必须清除 JWT、user storage、globalData.user
+      - 401 错误消息应提示"登录已过期"
+      - 正常 200-299 响应仍正常 resolve
+      - 模块导出 { request, API_BASE } 不变
+    baseline_should_fail: true
+    baseline_check_command: "cd deathplaylist_miniprogram && node test/eval-task-T005.test.js"
+    oracle_test_command: "cd deathplaylist_miniprogram && node test/eval-task-T005.test.js"
+    regression_test_command: "cd deathplaylist_miniprogram && node -e \"const api = require('./utils/api.js'); if (typeof api.request !== 'function' || api.API_BASE === undefined) process.exit(1)\""
+    max_files_changed: 1
+    max_lines_total: 80
+
+  - id: T006
+    title: "批量歌曲 upsert，减少逐首 service 调用"
+    category: "refactor"
+    difficulty: "hard"
+    description: |
+      deathplaylist_backends/src/playlists/playlists.service.ts 中的 upsertPlaylistSongs 方法存在 N+1 问题：对每首歌单独调用 songsService.findOrCreate()，N 首歌产生 N~2N 次数据库查询。
+
+      当前代码：
+      ```typescript
+      for (let i = 0; i < songs.length; i++) {
+        const song = await this.songsService.findOrCreate({ ... });
+        // 每次 1 SELECT + 可能 1 INSERT
+      }
+      ```
+
+      请优化为批量操作：
+
+      1. 在 deathplaylist_backends/src/songs/songs.service.ts 中新增批量方法：
+         ```typescript
+         async findOrCreateMany(songsData: Array<{externalId, title, artist, albumArt?}>): Promise<Song[]>
+         ```
+         该方法应：
+         - 用一次 SELECT 查询获取所有已存在的歌曲（WHERE externalId IN (...)）
+         - 筛选出不存在的新歌曲，用一次 INSERT 批量创建
+         - 按输入顺序返回完整的歌曲列表
+
+      2. 在 deathplaylist_backends/src/playlists/playlists.service.ts 中修改 upsertPlaylistSongs：
+         - 不再逐个调用 songsService.findOrCreate
+         - 改为一次调用 songsService.findOrCreateMany
+
+      保持 PlaylistsService 的公共 API 不变（create、update 等方法签名和行为不变）。
+      保持 SongsService.findOrCreate 不变（不删除，保持向后兼容）。
+
+      只修改这两个文件，不要修改 controller、前端或小程序代码。
+    files:
+      - deathplaylist_backends/src/playlists/playlists.service.ts
+      - deathplaylist_backends/src/songs/songs.service.ts
+    expected_changed_files:
+      - deathplaylist_backends/src/songs/songs.service.ts
+      - deathplaylist_backends/src/playlists/playlists.service.ts
+    allowed_changed_files:
+      - deathplaylist_backends/src/playlists/playlists.service.ts
+      - deathplaylist_backends/src/songs/songs.service.ts
+    forbidden_changed_files:
+      - deathplaylist_frontend/**
+      - deathplaylist_miniprogram/**
+      - deathplaylist_backends/src/playlists/playlists.controller.ts
+    business_invariants: |
+      - 歌单创建和更新行为不变
+      - 歌曲的 sortOrder 与输入顺序一致
+      - 已存在的歌曲不会重复创建
+      - 已有的 e2e 测试（eval-api）不应被破坏
+      - SongsService.findOrCreate 保留不变
+    baseline_should_fail: true
+    baseline_check_command: "cd deathplaylist_backends && DB_DATABASE=:memory: npm run test:e2e -- --testPathPattern=eval-task-T006 --forceExit"
+    oracle_test_command: "cd deathplaylist_backends && DB_DATABASE=:memory: npm run test:e2e -- --testPathPattern=eval-task-T006 --forceExit"
+    regression_test_command: "cd deathplaylist_backends && DB_DATABASE=:memory: npm run test:e2e -- --testPathPattern=eval-api --forceExit"
+    max_files_changed: 2
+    max_lines_total: 120
