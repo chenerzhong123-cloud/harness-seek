@@ -150,12 +150,56 @@ GLM-5.1 × T001-T003 × 3 runs：
 
 **至此 T001-T006 全部 100% 通过。**
 
-### 下一步：Harness 分层实验
+### Step 10 — H0-H6 Harness 阶梯式实验 ✅
+
+**基础设施修复：**
+- 启用 repo map（移除 `use_repo_map: false`）
+- 修复 token 统计：支持 `2.8k` 格式（之前全部返回 null）
+- 修复 worktree 清理 symlink 导致的 rmtree 崩溃
+- 修正 H6 单变量递进（保持 feedback_rounds=3，只改 map_tokens）
+- edit_format 统一为 `whole`（GLM-5.1 不支持 diff）
+
+**实验结果（GLM-5.1 × T001-T006 × 3 runs × 7 configs = 126 次运行）：**
+
+| 任务 | H0 raw | H1 constrained | H2 structured | H3 oracle_ctx | H4 fb_2round | H5 fb_3round | H6 map_4096 |
+|------|--------|----------------|---------------|---------------|--------------|--------------|-------------|
+| T001 bugfix/easy | 100% | 100% | 100% | 100% | 100% | 100% | 100% |
+| T002 refactor/med | **0%** | **100%** | 33% | 33% | 67% | 67% | 67% |
+| T003 refactor/med | 100% | 100% | 100% | 100% | 100% | 100% | 100% |
+| T004 bugfix/easy | 100% | 100% | 100% | 100% | 100% | 100% | 100% |
+| T005 bugfix/med | 100% | 100% | 100% | **67%** | 100% | 100% | 100% |
+| T006 refactor/hard | **67%** | **67%** | **100%** | **100%** | **100%** | **100%** | **100%** |
+
+**关键发现：**
+
+1. **Constrained prompt（H1）是 T002 的最佳配置**：从 H0 的 0% 跃升到 100%。简单的「严格约束」前缀比结构化模板更有效。
+2. **Structured prompt（H2）对 T002 反而更差**（33%）：过多的结构化信息可能干扰模型对复杂重构任务的理解。
+3. **Oracle context（H3）是双刃剑**：T005 从 100% 降到 67%（oracle 测试文件内容误导了 agent），但 T006 从 67% 提升到 100%。
+4. **Feedback loop（H4/H5）提升了 T002**：从 H2/H3 的 33% 提到 67%，但仍不如 H1 的 100%。
+5. **H4（feedback_2round）是综合最优**：correctness=100%，regression=100%，scope_control=100%。唯一所有维度 100% 的配置。
+6. **Repo map 增加 token 消耗但未提升通过率**：H6 的 token_sent 从 H5 的 7300 涨到 8900-11000（+20-50%），但通过率相同。
+
+**Token 效率对比（avg sent/recv per run）：**
+
+| Config | T001 | T002 | T006 |
+|--------|------|------|------|
+| H0 raw | 4000/2433 | 6300/6021 | 5200/3966 |
+| H1 constrained | 4000/2300 | 4300/5066 | 5800/4100 |
+| H4 fb_2round | 7300/1433 | 5166/4066 | 9700/3733 |
+| H6 map_4096 | 8900/1500 | 6600/8466 | 11000/3933 |
+
+**结论：H4_feedback_2round（structured prompt + oracle context + 2 轮反馈）是最优 harness 配置。**
+
+### 下一步
+
+- [ ] 多模型对比（DeepSeek / Claude / Gemini）
+- [ ] 增加 runs 数量（3→10）提高统计显著性
+- [ ] 探索 focused_context 模式
 
 ## 待解决
 
 - [ ] DeepSeek / Anthropic / Google API Key 仍为占位值（当前仅用 GLM-5.1）
-- [ ] Token usage 统计仍为 null（GLM-5.1 输出格式不匹配 regex）
+- [x] ~~Token usage 统计仍为 null~~ → 已修复（支持 k 后缀格式）
 
 ## 环境依赖
 
