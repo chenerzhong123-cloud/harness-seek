@@ -129,16 +129,23 @@ def cleanup_worktree(worktree_path: Path):
         shutil.rmtree(worktree_path)
 
 
+def _parse_token_value(s: str) -> int:
+    """Parse token values like '2.8k' → 2800, '944' → 944."""
+    s = s.strip().rstrip(".")
+    if s.endswith("k"):
+        return int(float(s[:-1]) * 1000)
+    return int(s)
+
+
 def parse_token_usage(stdout: str) -> dict:
     result = {"tokens_sent": None, "tokens_received": None}
-    m = re.search(r'Tokens:\s*(\d+)\s*sent,\s*(\d+)\s*received', stdout)
-    if m:
-        result["tokens_sent"] = int(m.group(1))
-        result["tokens_received"] = int(m.group(2))
-    all_matches = re.findall(r'Tokens:\s*(\d+)\s*sent,\s*(\d+)\s*received', stdout)
-    if len(all_matches) > 1:
-        result["tokens_sent"] = sum(int(m[0]) for m in all_matches)
-        result["tokens_received"] = sum(int(m[1]) for m in all_matches)
+    # Match formats: "Tokens: 2.8k sent, 2.0k received." or "Tokens: 5.3k sent, 944 received."
+    all_matches = re.findall(r'Tokens:\s*([\d.k]+)\s*sent,\s*([\d.k]+)\s*received', stdout)
+    if all_matches:
+        sent_vals = [_parse_token_value(m[0]) for m in all_matches]
+        recv_vals = [_parse_token_value(m[1]) for m in all_matches]
+        result["tokens_sent"] = sum(sent_vals)
+        result["tokens_received"] = sum(recv_vals)
     return result
 
 
@@ -202,6 +209,7 @@ def run_agent(task: dict, model_name: str, worktree_path: Path,
         "--yes-always",
         "--no-auto-commits",
         "--no-show-model-warnings",
+        "--edit-format", config.get("edit_format", "whole"),
         "--message", prompt,
     ]
     cmd.extend(_get_aider_extra_args(model_name))

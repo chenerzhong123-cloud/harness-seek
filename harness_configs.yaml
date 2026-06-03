@@ -1,13 +1,13 @@
 # harness_configs.yaml — Harness 实验配置
 # 每个实验尽量只比前一个多一个主要变量，保证结果可解释
-# 固定条件：model=glm-5.1, tasks=T001-T003, runs=3, auto_commits=false, edit_format=diff
+# 固定条件：model=glm-5.1, tasks=T001-T006, runs=3, auto_commits=false, edit_format=whole
 
 defaults:
   model: glm-5.1
-  tasks: [T001, T002, T003]
+  tasks: [T001, T002, T003, T004, T005, T006]
   runs: 3
   auto_commits: false
-  edit_format: diff
+  edit_format: whole
   planning_mode: direct
   scope_guard: post_check
 
@@ -87,7 +87,7 @@ configs:
     prompt_template: raw
     context_mode: file_args_only
     map_tokens: 2048
-    edit_format: diff
+    edit_format: whole
     planning_mode: direct
     feedback_rounds: 1
     scope_guard: post_check
@@ -97,7 +97,7 @@ configs:
     prompt_template: constrained
     context_mode: file_args_only
     map_tokens: 2048
-    edit_format: diff
+    edit_format: whole
     planning_mode: direct
     feedback_rounds: 1
     scope_guard: post_check
@@ -107,7 +107,7 @@ configs:
     prompt_template: structured
     context_mode: file_args_only
     map_tokens: 2048
-    edit_format: diff
+    edit_format: whole
     planning_mode: direct
     feedback_rounds: 1
     scope_guard: post_check
@@ -117,7 +117,7 @@ configs:
     prompt_template: structured
     context_mode: oracle_visible
     map_tokens: 2048
-    edit_format: diff
+    edit_format: whole
     planning_mode: direct
     feedback_rounds: 1
     scope_guard: post_check
@@ -127,7 +127,7 @@ configs:
     prompt_template: structured
     context_mode: oracle_visible
     map_tokens: 2048
-    edit_format: diff
+    edit_format: whole
     planning_mode: direct
     feedback_rounds: 2
     scope_guard: post_check
@@ -137,7 +137,7 @@ configs:
     prompt_template: structured
     context_mode: oracle_visible
     map_tokens: 2048
-    edit_format: diff
+    edit_format: whole
     planning_mode: direct
     feedback_rounds: 3
     scope_guard: post_check
@@ -147,8 +147,8 @@ configs:
     prompt_template: structured
     context_mode: oracle_visible
     map_tokens: 4096
-    edit_format: diff
+    edit_format: whole
     planning_mode: direct
-    feedback_rounds: 2
+    feedback_rounds: 3
     scope_guard: post_check
     audit_level: full
