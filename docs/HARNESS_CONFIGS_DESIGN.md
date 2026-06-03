@@ -10,7 +10,21 @@
 
 > 每一层都设计可控变量，但第一阶段每次只释放一个变量，保证结果可解释。
 
-目标：固定模型（GLM-5.1）和任务（T001-T003），通过阶梯式实验观察不同 harness 配置对 agent 成功率的影响。
+目标：固定模型（GLM-5.1）和任务（T001-T006），通过阶梯式实验测量不同 harness 配置对 agent 效率的影响。
+
+### 实验目标说明
+
+H0 baseline 已达 100% 通过率（T001-T006 全部 3/3），通过率维度无提升空间。因此实验目标调整为**代价效率测量**：
+
+| 维度 | 说明 |
+|------|------|
+| **通过率稳定性** | 不同配置是否保持 100%，还是出现退化 |
+| **Token 效率** | 达到通过所需的 token 消耗（sent/received） |
+| **时间效率** | agent 执行耗时 |
+| **反馈轮次** | multi-round feedback 是否减少单轮修改量 |
+| **代码质量** | 改动量（files/lines）是否更精简 |
+
+如果某配置在保持 100% 通过率的同时显著降低 token 消耗，则为更优配置。
 
 ## 2. 四层架构定义
 
@@ -176,10 +190,10 @@ def scope_post_check(task, changed_files):
 
 固定条件：
 - model: `glm-5.1`
-- tasks: `T001-T003`
+- tasks: `T001-T006`
 - runs: `3`
 - auto_commits: `false`
-- edit_format: `diff`
+- edit_format: `whole`（GLM-5.1 不支持 diff 格式，model settings 固定为 whole）
 - planning_mode: `direct`
 
 ```yaml
@@ -188,7 +202,7 @@ configs:
     prompt_template: raw
     context_mode: file_args_only
     map_tokens: 2048
-    edit_format: diff
+    edit_format: whole
     planning_mode: direct
     feedback_rounds: 1
     scope_guard: post_check
@@ -198,7 +212,7 @@ configs:
     prompt_template: constrained
     context_mode: file_args_only
     map_tokens: 2048
-    edit_format: diff
+    edit_format: whole
     planning_mode: direct
     feedback_rounds: 1
     scope_guard: post_check
@@ -208,7 +222,7 @@ configs:
     prompt_template: structured
     context_mode: file_args_only
     map_tokens: 2048
-    edit_format: diff
+    edit_format: whole
     planning_mode: direct
     feedback_rounds: 1
     scope_guard: post_check
@@ -218,7 +232,7 @@ configs:
     prompt_template: structured
     context_mode: oracle_visible
     map_tokens: 2048
-    edit_format: diff
+    edit_format: whole
     planning_mode: direct
     feedback_rounds: 1
     scope_guard: post_check
@@ -228,7 +242,7 @@ configs:
     prompt_template: structured
     context_mode: oracle_visible
     map_tokens: 2048
-    edit_format: diff
+    edit_format: whole
     planning_mode: direct
     feedback_rounds: 2
     scope_guard: post_check
@@ -238,7 +252,7 @@ configs:
     prompt_template: structured
     context_mode: oracle_visible
     map_tokens: 2048
-    edit_format: diff
+    edit_format: whole
     planning_mode: direct
     feedback_rounds: 3
     scope_guard: post_check
@@ -248,20 +262,20 @@ configs:
     prompt_template: structured
     context_mode: oracle_visible
     map_tokens: 4096
-    edit_format: diff
+    edit_format: whole
     planning_mode: direct
-    feedback_rounds: 2
+    feedback_rounds: 3
     scope_guard: post_check
     audit_level: full
 ```
 
-变量递进关系：
+变量递进关系（每次只变一个变量）：
 
 ```text
-H0 → H1 → H2    ：Prompt Layer 递进
-H2 → H3          ：Context Layer 引入 oracle
-H3 → H4 → H5    ：Execution Layer 递增反馈轮次
-H5 → H6          ：Context Layer 增大 repo map
+H0 → H1 → H2    ：Prompt Layer 递进（raw → constrained → structured）
+H2 → H3          ：Context Layer 引入 oracle 测试文件
+H3 → H4 → H5    ：Execution Layer 递增反馈轮次（1 → 2 → 3）
+H5 → H6          ：Context Layer 增大 repo map（2048 → 4096）
 ```
 
 每一步的提升可归因到具体某一层的具体变量。
@@ -280,7 +294,7 @@ phase2_experiments:
 ```
 
 暂不纳入第一阶段的变量：
-- `whole` edit format
+- `diff` edit format（GLM-5.1 不支持，换模型时可测试）
 - `architect` planning mode
 - `direct-api` agent engine
 - `claude-code` agent engine
@@ -313,10 +327,10 @@ phase2_experiments:
 # 全局固定配置
 defaults:
   model: glm-5.1
-  tasks: [T001, T002, T003]
+  tasks: [T001, T002, T003, T004, T005, T006]
   runs: 3
   auto_commits: false
-  edit_format: diff
+  edit_format: whole
   planning_mode: direct
   scope_guard: post_check
 
@@ -429,7 +443,7 @@ configs:
     prompt_template: structured
     context_mode: oracle_visible
     map_tokens: 4096
-    feedback_rounds: 2
+    feedback_rounds: 3
     audit_level: full
 ```
 
@@ -454,7 +468,7 @@ def render_prompt(config, task):
 ```python
 def build_aider_args(config, task):
     args = ["aider", "--model", "glm-5.1", "--no-auto-commits"]
-    args += ["--edit-format", config.get("edit_format", "diff")]
+    args += ["--edit-format", config.get("edit_format", "whole")]
     args += ["--map-tokens", str(config.get("map_tokens", 2048))]
 
     # 文件参数
@@ -637,9 +651,12 @@ T001 avg token usage:
 ### Step 5：跑 H0 baseline 验证
 
 ```bash
-python eval_runner.py --harness-config H0_baseline --task T001 --runs 3
-python eval_runner.py --harness-config H0_baseline --task T002 --runs 3
-python eval_runner.py --harness-config H0_baseline --task T003 --runs 3
+python eval_runner.py --harness-config H0_baseline --model glm-5.1 --task T001 --runs 3
+python eval_runner.py --harness-config H0_baseline --model glm-5.1 --task T002 --runs 3
+python eval_runner.py --harness-config H0_baseline --model glm-5.1 --task T003 --runs 3
+python eval_runner.py --harness-config H0_baseline --model glm-5.1 --task T004 --runs 3
+python eval_runner.py --harness-config H0_baseline --model glm-5.1 --task T005 --runs 3
+python eval_runner.py --harness-config H0_baseline --model glm-5.1 --task T006 --runs 3
 python eval_runner.py --report
 ```
 
