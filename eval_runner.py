@@ -109,7 +109,7 @@ def _get_aider_extra_args(model_name: str) -> list:
 def create_worktree(task_id: str, model_name: str, run_index: int) -> Path:
     worktree_path = WORKTREES_DIR / f"{task_id}_{model_name}_{run_index}"
     if worktree_path.exists():
-        shutil.rmtree(worktree_path)
+        cleanup_worktree(worktree_path)
     shutil.copytree(PROJECT_CODE, worktree_path, ignore=shutil.ignore_patterns('.git', '.venv', '.eval_worktrees'))
     for subdir in ['deathplaylist_backends', 'deathplaylist_frontend', 'deathplaylist_miniprogram']:
         src_modules = PROJECT_CODE / subdir / 'node_modules'
@@ -126,6 +126,10 @@ def create_worktree(task_id: str, model_name: str, run_index: int) -> Path:
 
 def cleanup_worktree(worktree_path: Path):
     if worktree_path.exists():
+        # Remove symlinks first to avoid rmtree following into source dirs
+        for p in worktree_path.rglob("*"):
+            if p.is_symlink():
+                p.unlink()
         shutil.rmtree(worktree_path)
 
 
